@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Körpü Chat</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f2f5f7; --surface:#ffffff; --fg:#14232c; --muted:#5d6f7a; --line:#dbe3e8;
+  --mine:#0d6e8c; --theirs:#ffffff; --accent:#0d6e8c; --tr:#e8f1f4; --err:#b33a2e;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Figtree","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f181d; --surface:#17242b; --fg:#e6eef2; --muted:#93a6b0; --line:#25363f;
+  --mine:#1f86a6; --theirs:#1c2c34; --accent:#4cb3d3; --tr:#1a333d; --err:#f08a7e; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45}
+[hidden]{display:none!important}
+.app{height:100%;display:flex;flex-direction:column;max-width:760px;margin:0 auto;
+  padding-top:env(safe-area-inset-top,0px)}
+.pad{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.pick{margin:auto;display:flex;flex-direction:column;gap:16px;width:min(100%,440px);padding-block:24px}
+.pick h1{font-family:var(--display);font-size:30px;line-height:1.1;margin:0;letter-spacing:-.02em}
+.pick p{margin:0;color:var(--muted)}
+.pick label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.pick input{width:100%;font:inherit;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.field{display:flex;flex-direction:column;gap:6px}
+.choice{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--surface);color:var(--fg);
+  border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.choice:hover{border-color:var(--accent)}
+.choice span{font-family:var(--display);font-size:18px;font-weight:600}
+.choice small{color:var(--muted);font-size:13px}
+.hint{font-size:13px;color:var(--muted)}
+
+#chat{flex:1;display:flex;flex-direction:column;min-height:0}
+header{display:flex;align-items:center;gap:12px;padding-block:14px;border-bottom:1px solid var(--line)}
+.logo{font-family:var(--display);font-weight:700;font-size:20px}
+.pair{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.pair b{color:var(--fg)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:#2f9e5b}
+.spacer{flex:1}
+.ghost{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 12px;font-size:13px}
+
+#thread{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-block:18px}
+.msg{max-width:min(80%,520px);display:flex;flex-direction:column;gap:4px}
+.msg.mine{align-self:flex-end;align-items:flex-end}
+.msg.theirs{align-self:flex-start}
+.bubble{padding:9px 13px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.mine .bubble{background:var(--mine);color:#fff;border-bottom-right-radius:5px}
+.theirs .bubble{background:var(--theirs);border:1px solid var(--line);border-bottom-left-radius:5px}
+.pending{font-style:italic;opacity:.8}
+.meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+.linkish{background:none;border:none;padding:0;color:var(--accent);font-size:12px}
+.other{font-size:13px;color:var(--muted);background:var(--tr);border-radius:10px;padding:6px 10px;overflow-wrap:anywhere}
+.empty{margin:auto;text-align:center;color:var(--muted);max-width:34ch}
+.empty strong{display:block;font-family:var(--display);font-size:18px;color:var(--fg);margin-bottom:4px}
+
+form{display:flex;gap:10px;align-items:flex-end;border-top:1px solid var(--line);background:var(--surface);
+  padding-block:12px calc(12px + env(safe-area-inset-bottom,0px))}
+textarea{flex:1;min-width:0;resize:none;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:10px 12px;max-height:140px}
+.send{background:var(--accent);color:#fff;border:none;border-radius:14px;padding:10px 18px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="pick pad" id="pick">
+    <h1>Write in your language. Read in yours.</h1>
+    <p>Messages are translated automatically between English and Azerbaijani. No account needed.</p>
+    <div class="field">
+      <label for="room">Chat code / Söhbət kodu</label>
+      <input id="room" autocomplete="off" placeholder="e.g. sunflower-baku-4821">
+      <span class="hint">Both of you must type the exact same code. Make it long and hard to guess. / Hər ikiniz eyni kodu yazmalısınız.</span>
+    </div>
+    <button class="choice" id="pick-en" type="button"><span>Abdullah: I write English</span><small>Kapandi's messages appear to you in English</small></button>
+    <button class="choice" id="pick-az" type="button"><span>Kapandi: Mən Azərbaycanca yazıram</span><small>Abdullahın mesajları sizə Azərbaycanca görünəcək</small></button>
+  </section>
+
+  <div id="chat" hidden>
+    <header class="pad">
+      <div class="logo">Körpü</div>
+      <span class="dot" id="dot" title="Connection"></span>
+      <div class="pair"><b id="my-lang">EN</b> ⇄ <span id="their-lang">AZ</span></div>
+      <div class="spacer"></div>
+      <button class="ghost" id="leave" type="button">Change</button>
+    </header>
+    <div id="thread" class="pad" aria-live="polite">
+      <div class="empty" id="empty"><strong id="empty-t"></strong><span id="empty-x"></span></div>
+    </div>
+    <form id="composer" class="pad">
+      <textarea id="input" rows="1"></textarea>
+      <button class="send" id="send" type="submit"></button>
+    </form>
+  </div>
+</div>
+
+<script>
+const T={
+  en:{code:"EN",ph:"Write a message…",send:"Send",emptyT:"No messages yet",emptyX:"Your messages reach Kapandi in Azerbaijani.",orig:"Show original",hide:"Hide original",translating:"Translating…",failed:"Couldn't translate. Showing original.",you:"You",them:"Kapandi",change:"Change",sendFail:"Message not sent. Check your internet and try again."},
+  az:{code:"AZ",ph:"Mesaj yazın…",send:"Göndər",emptyT:"Hələ mesaj yoxdur",emptyX:"Mesajlarınız Abdullaha ingiliscə çatacaq.",orig:"Orijinalı göstər",hide:"Orijinalı gizlət",translating:"Tərcümə olunur…",failed:"Tərcümə alınmadı. Orijinal göstərilir.",you:"Siz",them:"Abdullah",change:"Dəyiş",sendFail:"Mesaj göndərilmədi. İnterneti yoxlayıb yenidən cəhd edin."}
+};
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+let me=store.get("korpu-lang"), room=store.get("korpu-room")||"", topic="", es=null;
+let clientId=store.get("korpu-id"); if(!clientId){clientId=Math.random().toString(36).slice(2)+Date.now().toString(36); store.set("korpu-id",clientId);}
+let msgs=[], seen=new Set(), open=new Set();
+$("room").value=room;
+
+// Turn the chat code into a hard-to-guess channel name
+function topicFor(code){
+  const s=code.trim().toLowerCase(); let h1=0x811c9dc5,h2=0x1234567;
+  for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,16777619)>>>0;h2=Math.imul(h2^c,2246822519)>>>0;}
+  return "korpu_"+h1.toString(36)+h2.toString(36)+s.length;
+}
+
+function start(lang){
+  const code=$("room").value.trim();
+  if(code.length<6){ $("room").focus(); $("room").placeholder="At least 6 characters / Ən azı 6 simvol"; return; }
+  me=lang; room=code; store.set("korpu-lang",me); store.set("korpu-room",room);
+  openChat();
+}
+$("pick-en").onclick=()=>start("en"); $("pick-az").onclick=()=>start("az");
+$("leave").onclick=()=>{ if(es) es.close(); $("chat").hidden=true; $("pick").hidden=false; };
+
+function openChat(){
+  topic=topicFor(room);
+  const t=T[me];
+  $("pick").hidden=true; $("chat").hidden=false;
+  $("my-lang").textContent=t.code; $("their-lang").textContent=T[me==="en"?"az":"en"].code;
+  $("input").placeholder=t.ph; $("send").textContent=t.send; $("leave").textContent=t.change;
+  $("empty-t").textContent=t.emptyT; $("empty-x").textContent=t.emptyX;
+  document.documentElement.lang=me;
+  // Restore this device's saved history for this chat
+  try{ msgs=JSON.parse(store.get("korpu-h-"+topic)||"[]"); }catch(e){ msgs=[]; }
+  seen=new Set(msgs.map(m=>m.id));
+  msgs.forEach(m=>{ if(m.lang!==me && !m.tr && !m.failed) translateMsg(m); });
+  render(); connect();
+}
+
+function connect(){
+  if(es) es.close();
+  const since = msgs.length ? Math.floor(msgs[msgs.length-1].time) : "12h";
+  es=new EventSource("https://ntfy.sh/"+topic+"/sse?since="+since);
+  es.onopen=()=>$("dot").classList.add("on");
+  es.onerror=()=>$("dot").classList.remove("on");
+  es.onmessage=e=>{
+    let ev; try{ev=JSON.parse(e.data)}catch(_){return}
+    if(ev.event!=="message"||seen.has(ev.id)) return;
+    let p; try{p=JSON.parse(ev.message)}catch(_){return}
+    if(!p||typeof p.text!=="string"||(p.lang!=="en"&&p.lang!=="az")) return;
+    seen.add(ev.id);
+    const m={id:ev.id,time:ev.time,lang:p.lang,from:p.from,text:p.text,tr:""};
+    msgs.push(m); msgs.sort((a,b)=>a.time-b.time);
+    if(m.lang!==me) translateMsg(m);
+    save(); render();
+  };
+}
+
+function save(){ store.set("korpu-h-"+topic, JSON.stringify(msgs.slice(-300))); }
+
+async function translateMsg(m){
+  m.busy=true; render();
+  const sl=m.lang, tl=m.lang==="en"?"az":"en";
+  try{
+    const r=await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl="+sl+"&tl="+tl+"&q="+encodeURIComponent(m.text));
+    const j=await r.json(); m.tr=j[0].map(x=>x[0]).join("");
+  }catch(e){
+    try{
+      const r=await fetch("https://api.mymemory.translated.net/get?langpair="+sl+"|"+tl+"&q="+encodeURIComponent(m.text));
+      const j=await r.json(); m.tr=j.responseData.translatedText;
+    }catch(_){ m.failed=true; }
+  }
+  m.busy=false; save(); render();
+}
+
+function render(){
+  const t=T[me], th=$("thread");
+  $("empty").hidden=msgs.length>0;
+  th.querySelectorAll(".msg").forEach(n=>n.remove());
+  for(const m of msgs){
+    const mine=m.from===clientId;
+    const w=document.createElement("div"); w.className="msg "+(mine?"mine":"theirs");
+    const b=document.createElement("div"); b.className="bubble";
+    const needs=m.lang!==me;
+    if(!needs) b.textContent=m.text;
+    else if(m.tr) b.textContent=m.tr;
+    else if(m.busy){ b.textContent=t.translating; b.classList.add("pending"); }
+    else b.textContent=m.text;
+    w.appendChild(b);
+    const meta=document.createElement("div"); meta.className="meta";
+    const who=document.createElement("span"); who.textContent=mine?t.you:t.them;
+    const tm=document.createElement("span"); tm.textContent=new Date(m.time*1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    meta.append(who,tm);
+    if(needs && m.tr){
+      const btn=document.createElement("button"); btn.type="button"; btn.className="linkish";
+      btn.textContent=open.has(m.id)?t.hide:t.orig;
+      btn.onclick=()=>{open.has(m.id)?open.delete(m.id):open.add(m.id); render();};
+      meta.appendChild(btn);
+    } else if(needs && m.failed){ const s=document.createElement("span"); s.textContent=t.failed; meta.appendChild(s); }
+    w.appendChild(meta);
+    if(open.has(m.id)){ const o=document.createElement("div"); o.className="other"; o.textContent=m.text; w.appendChild(o); }
+    th.appendChild(w);
+  }
+  th.scrollTop=th.scrollHeight;
+}
+
+const input=$("input");
+input.addEventListener("input",()=>{input.style.height="auto";input.style.height=Math.min(input.scrollHeight,140)+"px";});
+input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("composer").requestSubmit();}});
+$("composer").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const text=input.value.trim(); if(!text) return;
+  input.value=""; input.style.height="auto";
+  try{
+    const r=await fetch("https://ntfy.sh/",{method:"POST",body:JSON.stringify({topic,message:JSON.stringify({lang:me,from:clientId,text})})});
+    if(!r.ok) throw 0;
+  }catch(err){ input.value=text; alert(T[me].sendFail); }
+});
+
+if(me && room) openChat();
+</script>
+</body>
+</html>
